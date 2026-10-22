@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetPulse // Secure Diagnostic Utility</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --terminal-green: #00ff66;
+            --blood-red: #ff1a1a;
+            --dark-red: #400000;
+            --text-main: #e0e0e0;
+            --panel-bg: #0a0a0a;
+            --border-color: #222;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* CRT Scanlines Overlay */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 99999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .view-container {
+            display: none;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .view-container.active {
+            display: block;
+        }
+
+        /* Top Nav Switcher for Testing */
+        .debug-switcher {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 100000;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--border-color);
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        .debug-switcher button {
+            background: #222;
+            color: #fff;
+            border: none;
+            padding: 3px 8px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .debug-switcher button.active {
+            background: var(--terminal-green);
+            color: #000;
+            font-weight: bold;
+        }
+
+        /* --- OPERATOR DASHBOARD --- */
+        .dashboard-header {
+            border-bottom: 2px solid var(--terminal-green);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .dashboard-header h1 {
+            color: var(--terminal-green);
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 12px;
+            background: #111;
+            border: 1px solid #333;
+            margin-top: 5px;
+        }
+        .status-badge.armed {
+            border-color: var(--terminal-green);
+            color: var(--terminal-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        .panel-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .panel-box h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #fff;
+            border-left: 3px solid var(--terminal-green);
+            padding-left: 10px;
+        }
+
+        .link-generator-box {
+            background: #000;
+            padding: 10px;
+            border: 1px dashed #444;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 10px;
+            color: var(--terminal-green);
+        }
+
+        .btn {
+            background: #111;
+            color: var(--text-main);
+            border: 1px solid #444;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .btn:hover {
+            border-color: #fff;
+            background: #222;
+        }
+        .btn-danger {
+            background: var(--dark-red);
+            border-color: var(--blood-red);
+            color: #ff8080;
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        .btn-danger:hover {
+            background: var(--blood-red);
+            color: #fff;
+        }
+        .btn-action {
+            background: #1a0000;
+            border-color: #660000;
+            color: #ff9999;
+            margin: 5px;
+        }
+        .btn-action:hover {
+            background: #330000;
+            border-color: var(--blood-red);
+        }
+
+        .grid-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: #000;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+
+        /* --- VICTIM / TRAP SCREEN --- */
+        #victimView {
+            text-align: center;
+            padding-top: 40px;
+        }
+        .trap-intro {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 30px;
+            border-radius: 8px;
+        }
+        .trap-intro h1 {
+            color: #fff;
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+        }
+        .trap-intro p {
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        /* Haunt State Effects */
+        .haunted-active {
+            background-color: #000 !important;
+            animation: bgGlitch 0.2s infinite;
+        }
+        
+        .camera-container {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 10;
+            overflow: hidden;
+            display: none;
+            filter: grayscale(100%) contrast(150%) brightness(70%);
+        }
+        .camera-container video {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        .camera-overlay-static {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+        }
+
+        .overlay-message {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            font-size: 2.2rem;
+            color: var(--blood-red);
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 10px #000, 0 0 20px var(--blood-red);
+            display: none;
+            padding: 20px;
+            width: 90%;
+            pointer-events: none;
+        }
+
+        /* Fake Incoming Call Popup */
+        .incoming-call-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle, #200 0%, #000 80%);
+            z-index: 2000;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 60px 20px;
+        }
+        .call-caller {
+            text-align: center;
+        }
+        .call-caller h2 {
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        .call-caller p {
+            color: var(--blood-red);
+            font-size: 1.1rem;
+            animation: pulse 1s infinite;
+        }
+        .call-actions {
+            display: flex;
+            gap: 40px;
+            width: 100%;
+            max-width: 400px;
+            justify-content: center;
+        }
+        .call-btn {
+            width: 75px; height: 75px;
+            border-radius: 50%;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .call-btn.decline { background: #800000; color: #fff; }
+        .call-btn.accept { background: #006600; color: #fff; }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        @keyframes bgGlitch {
+            0% { background-color: #050505; }
+            50% { background-color: #1a0000; }
+            100% { background-color: #050505; }
+        }
+    </style>
+</head>
+<body class="crt">
+
+    <!-- Debug Switcher for Testing Both Views -->
+    <div class="debug-switcher">
+        View Mode: 
+        <button id="btnOpView" onclick="switchView('operator')" class="active">Operator Dashboard</button>
+        <button id="btnVicView" onclick="switchView('target')">Friend's Trap Screen</button>
+    </div>
+
+    <!-- ==================== OPERATOR DASHBOARD ==================== -->
+    <div id="operatorView" class="view-container active">
+        <div class="dashboard-header">
+            <h1>PHANTOM DISPATCH // OPERATOR CONTROL</h1>
+            <div id="connectionStatus" class="status-badge">WAITING FOR TARGET CONNECTION...</div>
+        </div>
+
+        <div class="panel-box">
+            <h2>1. Share Trap Link with Friend</h2>
+            <p style="font-size: 12px; color: #888; margin-bottom: 10px;">Send this disguised diagnostics link to your friend. Zero personal metadata is attached.</p>
+            <div class="link-generator-box" id="trapLinkDisplay">Generating link...</div>
+            <button class="btn" onclick="copyTrapLink()">Copy Trap Link</button>
+        </div>
+
+        <div class="panel-box">
+            <h2>2. Live Haunt Triggers</h2>
+            <div class="grid-controls">
+                <button class="btn btn-action" onclick="sendCommand('trigger_call')">📱 Trigger Fake Call</button>
+                <button class="btn btn-action" onclick="sendCommand('trigger_whisper')">🔊 Play Creepy Audio</button>
+                <button class="btn btn-action" onclick="sendCommand('trigger_glitch')">⚡ Screen Glitch & Flash</button>
+                <button class="btn btn-action" onclick="sendCommand('start_barrage')">💀 Start Auto-Barrage</button>
+            </div>
+        </div>
+
+        <div class="panel-box">
+            <h2>3. Custom Message Injector</h2>
+            <input type="text" id="customMsgInput" placeholder="Type custom message to pop up on their phone (e.g. Look behind you...)" value="I can see you looking at your phone.">
+            <button class="btn" onclick="sendCustomMessage()">Inject Live Message</button>
+        </div>
+
+        <div class="panel-box" style="border-color: var(--blood-red);">
+            <h2>Emergency Kill-Switch</h2>
+            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">Immediately halts all active audio, vibrations, and haunting effects on the victim's device.</p>
+            <button class="btn btn-danger" onclick="sendCommand('emergency_stop')">EMERGENCY STOP / ABORT</button>
+        </div>
+    </div>
+
+    <!-- ==================== VICTIM / TRAP SCREEN ==================== -->
+    <div id="victimView" class="view-container">
+        <div id="trapWelcome" class="trap-intro">
+            <div style="font-size: 3rem; margin-bottom: 15px;">📶</div>
+            <h1>NetPulse Latency Diagnostic</h1>
+            <p>Run a secure ping analysis to check packet loss and Wi-Fi node stability on your current network interface.</p>
+            <button class="btn" style="background: var(--terminal-green); color: #000; width: 100%; padding: 15px;" onclick="armTrap()">START NETWORK TEST</button>
+        </div>
+
+        <!-- Hidden Camera Feed Container -->
+        <div id="cameraContainer" class="camera-container">
+            <video id="webcamFeed" autoplay playsinline muted></video>
+            <div class="camera-overlay-static"></div>
+        </div>
+
+        <!-- Dynamic Overlay Text -->
+        <div id="overlayMsg" class="overlay-message"></div>
+
+        <!-- Fake Incoming Call Screen -->
+        <div id="incomingCall" class="incoming-call-screen">
+            <div class="call-caller">
+                <p>INCOMING SECURE CALL</p>
+                <h2 id="callerName">UNKNOWN // NULL</h2>
+                <p>00:03</p>
+            </div>
+            <div style="font-size: 4rem; animation: pulse 0.5s infinite;">💀</div>
+            <div class="call-actions">
+                <button class="call-btn decline" onclick="dismissCall()">DECLINE</button>
+                <button class="call-btn accept" onclick="dismissCall()">ANSWER</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Unique Room ID for real-time channel simulation
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomCode = urlParams.get('room') || 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
+        let isTargetMode = urlParams.get('mode') === 'target';
+
+        // Initialize view based on URL parameter
+        if (isTargetMode) {
+            switchView('target');
+        } else {
+            document.getElementById('trapLinkDisplay').innerText = window.location.origin + window.location.pathname + '?mode=target&room=' + roomCode;
+        }
+
+        function switchView(mode) {
+            if (mode === 'operator') {
+                document.getElementById('operatorView').classList.add('active');
+                document.getElementById('victimView').classList.remove('active');
+                document.getElementById('btnOpView').classList.add('active');
+                document.getElementById('btnVicView').classList.remove('active');
+            } else {
+                document.getElementById('operatorView').classList.remove('active');
+                document.getElementById('victimView').classList.add('active');
+                document.getElementById('btnVicView').classList.add('active');
+                document.getElementById('btnOpView').classList.remove('active');
+            }
+        }
+
+        function copyTrapLink() {
+            const linkText = document.getElementById('trapLinkDisplay').innerText;
+            navigator.clipboard.writeText(linkText);
+            alert('Trap link copied to clipboard! Send this to your friend.');
+        }
+
+        // --- SIMULATED REAL-TIME CHANNEL (Using BroadcastChannel & LocalStorage) ---
+        const channel = new BroadcastChannel('phantom_channel_' + roomCode);
+
+        function sendCommand(action, payload = {}) {
+            channel.postMessage({ action, payload, room: roomCode });
+            document.getElementById('connectionStatus').innerText = "SIGNAL DISPATCHED: " + action.toUpperCase();
+            document.getElementById('connectionStatus').classList.add('armed');
+        }
+
+        function sendCustomMessage() {
+            const msg = document.getElementById('customMsgInput').value;
+            sendCommand('show_message', { text: msg });
+        }
+
+        // --- VICTIM SIDE EVENT LISTENERS ---
+        channel.onmessage = function (event) {
+            if (isTargetMode || document.getElementById('victimView').classList.contains('active')) {
+                handleHauntAction(event.data.action, event.data.payload);
+            }
+        };
+
+        async function armTrap() {
+            document.getElementById('trapWelcome').style.display = 'none';
+            document.getElementById('connectionStatus').innerText = "TARGET ARMED & LISTENING";
+            
+            // Attempt to trigger camera permission trap
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const videoElement = document.getElementById('webcamFeed');
+                videoElement.srcObject = stream;
+                document.getElementById('cameraContainer').style.display = 'block';
+            } catch (err) {
+                console.log('Camera permission denied or unavailable, proceeding with visual-only effects.');
+            }
+
+            // Request full screen for psychological immersion
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+
+            // Trigger subtle initial vibration if supported
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        }
+
+        function handleHauntAction(action, payload) {
+            const overlay = document.getElementById('overlayMsg');
+            const callScreen = document.getElementById('incomingCall');
+
+            if (action === 'trigger_call') {
+                callScreen.style.display = 'flex';
+                if (navigator.vibrate) navigator.vibrate([500, 300, 500, 300]);
+                playCreepyDrone();
+            } else if (action === 'trigger_whisper') {
+                playCreepyDrone();
+                flashScreenText("I SEE YOU...");
+            } else if (action === 'trigger_glitch') {
+                triggerGlitchEffect();
+            } else if (action === 'start_barrage') {
+                runAutoBarrage();
+            } else if (action === 'show_message') {
+                flashScreenText(payload.text);
+            } else if (action === 'emergency_stop') {
+                stopAllHaunts();
+            }
+        }
+
+        function flashScreenText(text) {
+            const overlay = document.getElementById('overlayMsg');
+            overlay.innerText = text;
+            overlay.style.display = 'block';
+            if (navigator.vibrate) navigator.vibrate(400);
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 3500);
+        }
+
+        function triggerGlitchEffect() {
+            document.body.classList.add('haunted-active');
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 300]);
+            setTimeout(() => {
+                document.body.classList.remove('haunted-active');
+            }, 2000);
+        }
+
+        function dismissCall() {
+            document.getElementById('incomingCall').style.display = 'none';
+        }
+
+        function stopAllHaunts() {
+            document.getElementById('incomingCall').style.display = 'none';
+            document.getElementById('overlayMsg').style.display = 'none';
+            document.body.classList.remove('haunted-active');
+            if (navigator.vibrate) navigator.vibrate(0);
+        }
+
+        function runAutoBarrage() {
+            const phrases = [
+                "BEHIND YOU.",
+                "WHY DID YOU OPEN THIS LINK?",
+                "YOUR CAMERA IS ACTIVE.",
+                "DO NOT LOOK AWAY.",
+                "THEY ARE WATCHING."
+            ];
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i >= phrases.length) {
+                    clearInterval(interval);
+                    return;
+                }
+                flashScreenText(phrases[i]);
+                i++;
+            }, 4000);
+        }
+
+        // Web Audio API eerie sound generator (zero external assets required)
+        function playCreepyDrone() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A note
+                osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 3);
+
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 4);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 4);
+            } catch (e) {
+                console.log("Audio context requires user interaction first.");
+            }
+        }
+    </script>
+</body>
+</html>
