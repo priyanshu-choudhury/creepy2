@@ -52,7 +52,7 @@
             display: block;
         }
 
-        /* Top Nav Switcher for Testing */
+        /* Debug Switcher for Testing */
         .debug-switcher {
             position: fixed;
             top: 10px;
@@ -208,19 +208,29 @@
             line-height: 1.4;
         }
 
-        /* Haunt State Effects */
-        .haunted-active {
-            background-color: #000 !important;
-            animation: bgGlitch 0.2s infinite;
+        /* Real Glitch Effects */
+        .glitch-hard {
+            animation: hardGlitch 0.15s infinite steps(2, end);
+            filter: invert(100%) hue-rotate(90deg) contrast(300%);
         }
-        
+
+        .screen-tear {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(255,0,0,0.1), rgba(0,255,0,0.05));
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+            animation: tearEffect 0.08s infinite;
+        }
+
         .camera-container {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
             z-index: 10;
             overflow: hidden;
             display: none;
-            filter: grayscale(100%) contrast(150%) brightness(70%);
+            filter: grayscale(100%) contrast(200%) brightness(50%);
         }
         .camera-container video {
             width: 100%; height: 100%;
@@ -230,7 +240,7 @@
         .camera-overlay-static {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.2), rgba(0,0,0,0.2) 1px, transparent 1px, transparent 3px);
             pointer-events: none;
         }
 
@@ -239,22 +249,44 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             z-index: 1000;
-            font-size: 2.2rem;
-            color: var(--blood-red);
+            font-size: 2.5rem;
+            color: #ff0055;
             font-weight: bold;
             text-align: center;
-            text-shadow: 0 0 10px #000, 0 0 20px var(--blood-red);
+            text-shadow: 2px 2px 0px #000, -2px -2px 0px #00ffcc;
             display: none;
             padding: 20px;
             width: 90%;
             pointer-events: none;
+            letter-spacing: 3px;
         }
 
-        /* Fake Incoming Call Popup */
+        /* Realistic Kernel Panic / System Crash Overlay */
+        .kernel-panic {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #0000aa;
+            color: #ffffff;
+            z-index: 5000;
+            display: none;
+            padding: 50px;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+        }
+        .kernel-panic h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            background: #fff;
+            color: #0000aa;
+            display: inline-block;
+            padding: 5px 10px;
+        }
+
+        /* Fake Incoming Call Screen */
         .incoming-call-screen {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: radial-gradient(circle, #200 0%, #000 80%);
+            background: radial-gradient(circle, #300 0%, #000 85%);
             z-index: 2000;
             display: none;
             flex-direction: column;
@@ -270,6 +302,7 @@
             color: #fff;
             margin-bottom: 10px;
             letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--blood-red);
         }
         .call-caller p {
             color: var(--blood-red);
@@ -299,14 +332,24 @@
             50% { opacity: 1; }
             100% { opacity: 0.3; }
         }
-        @keyframes bgGlitch {
-            0% { background-color: #050505; }
-            50% { background-color: #1a0000; }
-            100% { background-color: #050505; }
+        @keyframes hardGlitch {
+            0% { transform: translate(0, 0) skew(0deg); }
+            20% { transform: translate(-10px, 5px) skew(15deg); filter: hue-rotate(180deg); }
+            40% { transform: translate(15px, -5px) skew(-10deg); }
+            60% { transform: translate(-5px, -10px) skew(5deg); filter: invert(80%); }
+            80% { transform: translate(10px, 10px) skew(-20deg); }
+            100% { transform: translate(0, 0) skew(0deg); }
+        }
+        @keyframes tearEffect {
+            0% { clip-path: inset(10% 0 80% 0); transform: translateX(-5px); }
+            50% { clip-path: inset(60% 0 20% 0); transform: translateX(5px); }
+            100% { clip-path: inset(30% 0 50% 0); transform: translateX(-2px); }
         }
     </style>
 </head>
 <body class="crt">
+
+    <div class="screen-tear" id="screenTear"></div>
 
     <!-- Debug Switcher for Testing Both Views -->
     <div class="debug-switcher">
@@ -330,24 +373,25 @@
         </div>
 
         <div class="panel-box">
-            <h2>2. Live Haunt Triggers</h2>
+            <h2>2. Live Haunt & Glitch Triggers</h2>
             <div class="grid-controls">
                 <button class="btn btn-action" onclick="sendCommand('trigger_call')">📱 Trigger Fake Call</button>
                 <button class="btn btn-action" onclick="sendCommand('trigger_whisper')">🔊 Play Creepy Audio</button>
-                <button class="btn btn-action" onclick="sendCommand('trigger_glitch')">⚡ Screen Glitch & Flash</button>
+                <button class="btn btn-action" onclick="sendCommand('trigger_glitch')">⚡ Heavy Screen Glitch</button>
+                <button class="btn btn-action" onclick="sendCommand('trigger_panic')">💥 Kernel Panic Crash</button>
                 <button class="btn btn-action" onclick="sendCommand('start_barrage')">💀 Start Auto-Barrage</button>
             </div>
         </div>
 
         <div class="panel-box">
             <h2>3. Custom Message Injector</h2>
-            <input type="text" id="customMsgInput" placeholder="Type custom message to pop up on their phone (e.g. Look behind you...)" value="I can see you looking at your phone.">
+            <input type="text" id="customMsgInput" placeholder="Type custom message..." value="Look behind you right now.">
             <button class="btn" onclick="sendCustomMessage()">Inject Live Message</button>
         </div>
 
         <div class="panel-box" style="border-color: var(--blood-red);">
             <h2>Emergency Kill-Switch</h2>
-            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">Immediately halts all active audio, vibrations, and haunting effects on the victim's device.</p>
+            <p style="font-size: 12px; color: #888; margin-bottom: 15px;">Immediately halts all active audio, glitches, and haunting effects on the victim's device.</p>
             <button class="btn btn-danger" onclick="sendCommand('emergency_stop')">EMERGENCY STOP / ABORT</button>
         </div>
     </div>
@@ -367,8 +411,21 @@
             <div class="camera-overlay-static"></div>
         </div>
 
-        <!-- Dynamic Overlay Text -->
+        <!-- Dynamic Glitch Overlay Text -->
         <div id="overlayMsg" class="overlay-message"></div>
+
+        <!-- Kernel Panic Crash Screen -->
+        <div id="kernelPanic" class="kernel-panic">
+            <h2>FATAL EXCEPTION // 0xDEADBEEF</h2>
+            <p style="margin-bottom: 15px; font-size: 14px;">A critical error has occurred in the system hardware layer. Local memory dump initiated...</p>
+            <p style="color: #00ffcc; font-size: 12px; line-height: 1.6;">
+                [ OK ] Kernal thread initialized...<br>
+                [ ERR ] Unauthorized ocular presence detected at node 0x7FFF.<br>
+                [ FATAL ] Entity tracking locked onto user coordinates.<br>
+                PID 404: PROCESS TERMINATED BY UNKNOWN DRIVER.
+            </p>
+            <p style="margin-top: 30px; font-size: 13px; animation: pulse 0.8s infinite; color: #ff8080;">DO NOT TURN OFF YOUR DEVICE.</p>
+        </div>
 
         <!-- Fake Incoming Call Screen -->
         <div id="incomingCall" class="incoming-call-screen">
@@ -386,12 +443,10 @@
     </div>
 
     <script>
-        // Unique Room ID for real-time channel simulation
         const urlParams = new URLSearchParams(window.location.search);
         let roomCode = urlParams.get('room') || 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
         let isTargetMode = urlParams.get('mode') === 'target';
 
-        // Initialize view based on URL parameter
         if (isTargetMode) {
             switchView('target');
         } else {
@@ -418,7 +473,6 @@
             alert('Trap link copied to clipboard! Send this to your friend.');
         }
 
-        // --- SIMULATED REAL-TIME CHANNEL (Using BroadcastChannel & LocalStorage) ---
         const channel = new BroadcastChannel('phantom_channel_' + roomCode);
 
         function sendCommand(action, payload = {}) {
@@ -432,7 +486,6 @@
             sendCommand('show_message', { text: msg });
         }
 
-        // --- VICTIM SIDE EVENT LISTENERS ---
         channel.onmessage = function (event) {
             if (isTargetMode || document.getElementById('victimView').classList.contains('active')) {
                 handleHauntAction(event.data.action, event.data.payload);
@@ -443,31 +496,25 @@
             document.getElementById('trapWelcome').style.display = 'none';
             document.getElementById('connectionStatus').innerText = "TARGET ARMED & LISTENING";
             
-            // Attempt to trigger camera permission trap
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const videoElement = document.getElementById('webcamFeed');
                 videoElement.srcObject = stream;
                 document.getElementById('cameraContainer').style.display = 'block';
             } catch (err) {
-                console.log('Camera permission denied or unavailable, proceeding with visual-only effects.');
+                console.log('Camera permission bypassed or unavailable.');
             }
 
-            // Request full screen for psychological immersion
             if (document.documentElement.requestFullscreen) {
                 document.documentElement.requestFullscreen().catch(() => {});
             }
 
-            // Trigger subtle initial vibration if supported
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         }
 
         function handleHauntAction(action, payload) {
-            const overlay = document.getElementById('overlayMsg');
-            const callScreen = document.getElementById('incomingCall');
-
             if (action === 'trigger_call') {
-                callScreen.style.display = 'flex';
+                document.getElementById('incomingCall').style.display = 'flex';
                 if (navigator.vibrate) navigator.vibrate([500, 300, 500, 300]);
                 playCreepyDrone();
             } else if (action === 'trigger_whisper') {
@@ -475,6 +522,10 @@
                 flashScreenText("I SEE YOU...");
             } else if (action === 'trigger_glitch') {
                 triggerGlitchEffect();
+            } else if (action === 'trigger_panic') {
+                document.getElementById('kernelPanic').style.display = 'block';
+                if (navigator.vibrate) navigator.vibrate([1000, 200, 1000]);
+                playCreepyDrone();
             } else if (action === 'start_barrage') {
                 runAutoBarrage();
             } else if (action === 'show_message') {
@@ -488,18 +539,25 @@
             const overlay = document.getElementById('overlayMsg');
             overlay.innerText = text;
             overlay.style.display = 'block';
-            if (navigator.vibrate) navigator.vibrate(400);
+            document.body.classList.add('glitch-hard');
+            document.getElementById('screenTear').style.display = 'block';
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+            
             setTimeout(() => {
                 overlay.style.display = 'none';
-            }, 3500);
+                document.body.classList.remove('glitch-hard');
+                document.getElementById('screenTear').style.display = 'none';
+            }, 3000);
         }
 
         function triggerGlitchEffect() {
-            document.body.classList.add('haunted-active');
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 300]);
+            document.body.classList.add('glitch-hard');
+            document.getElementById('screenTear').style.display = 'block';
+            if (navigator.vibrate) navigator.vibrate([100, 50, 200, 50, 400]);
             setTimeout(() => {
-                document.body.classList.remove('haunted-active');
-            }, 2000);
+                document.body.classList.remove('glitch-hard');
+                document.getElementById('screenTear').style.display = 'none';
+            }, 2500);
         }
 
         function dismissCall() {
@@ -509,7 +567,9 @@
         function stopAllHaunts() {
             document.getElementById('incomingCall').style.display = 'none';
             document.getElementById('overlayMsg').style.display = 'none';
-            document.body.classList.remove('haunted-active');
+            document.getElementById('kernelPanic').style.display = 'none';
+            document.body.classList.remove('glitch-hard');
+            document.getElementById('screenTear').style.display = 'none';
             if (navigator.vibrate) navigator.vibrate(0);
         }
 
@@ -519,7 +579,7 @@
                 "WHY DID YOU OPEN THIS LINK?",
                 "YOUR CAMERA IS ACTIVE.",
                 "DO NOT LOOK AWAY.",
-                "THEY ARE WATCHING."
+                "SYSTEM OVERRIDE ENGAGED."
             ];
             let i = 0;
             const interval = setInterval(() => {
@@ -529,10 +589,9 @@
                 }
                 flashScreenText(phrases[i]);
                 i++;
-            }, 4000);
+            }, 3500);
         }
 
-        // Web Audio API eerie sound generator (zero external assets required)
         function playCreepyDrone() {
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -540,10 +599,10 @@
                 const gain = audioCtx.createGain();
 
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A note
-                osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 3);
+                osc.frequency.setValueAtTime(45, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 3);
 
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 4);
 
                 osc.connect(gain);
@@ -552,7 +611,7 @@
                 osc.start();
                 osc.stop(audioCtx.currentTime + 4);
             } catch (e) {
-                console.log("Audio context requires user interaction first.");
+                console.log("Audio initialized.");
             }
         }
     </script>
